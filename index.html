@@ -510,7 +510,7 @@ function renderSecurity(){
 }
 
 function drawRadar(g,c){
-  var rx=590,ry=120,R=70;
+  var rx=590,ry=420,R=70;
   var axes=['RAA','2+2','共同訓練','武器供与','海保支援','情報共有'];
   var keys=['raa','two2','joint','arms','cg','intel'];
   var n=6,ang=2*Math.PI/n;
@@ -577,10 +577,10 @@ function renderODA(){
   C.forEach(function(c){
     var xy=pj([c.lo,c.la]);
     var volume=c.oda.cum+c.fdi;
-    var pr2=Math.max(10,Math.sqrt(volume)*3.2);
-    var flagR=Math.max(5,pr2*0.4);
-    var fdiR=pr2+4+Math.sqrt(c.fdi)*2.5;
-    var popR=fdiR+3+Math.sqrt(c.pop)*1;
+    var pr2=Math.max(6,Math.pow(volume,0.7)*2.5);
+    var flagR=Math.max(4,pr2*0.38);
+    var fdiR=pr2+3+Math.pow(c.fdi,0.6)*3;
+    var popR=fdiR+3+Math.pow(c.pop,0.5)*1;
 
     gNodes.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',popR)
       .attr('fill','rgba(186,117,23,0.04)')
