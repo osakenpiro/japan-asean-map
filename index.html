@@ -379,8 +379,8 @@ function renderSecurity(){
 
     if(sc>=6){
       gMain.append('path').attr('d',arcPath(jpXY[0],jpXY[1],xy[0],xy[1]))
-        .attr('fill','none').attr('stroke','#7F77DD')
-        .attr('stroke-width',sc*0.35).attr('opacity',0.25)
+        .attr('fill','none').attr('stroke','#378ADD')
+        .attr('stroke-width',sc*0.35).attr('opacity',0.2)
         .attr('stroke-dasharray','8,4');
     }
 
@@ -412,54 +412,101 @@ function renderSecurity(){
     bindTT(hit,html);
   });
 
+  var vnXY=null,phXY=null;
   shieldNodes.forEach(function(sn){
-    var dx=scsCenter[0]-sn.xy[0],dy=scsCenter[1]-sn.xy[1];
-    var dist=Math.sqrt(dx*dx+dy*dy);
-    var shR=sn.auraR+8;
-    var angCenter=Math.atan2(dy,dx);
-    var spread=0.6;
-    var arc=d3.arc().innerRadius(shR).outerRadius(shR+3)
-      .startAngle(angCenter-spread).endAngle(angCenter+spread);
-    gCountry.append('path').attr('d',arc())
-      .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
-      .attr('fill','#7F77DD').attr('opacity',0.5);
-    gCountry.append('path').attr('d',arc())
-      .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
-      .attr('fill','#7F77DD').attr('opacity',0);
-    var shieldPulse=gCountry.append('path').attr('d',
-      d3.arc().innerRadius(shR+4).outerRadius(shR+7)
-        .startAngle(angCenter-spread*0.8).endAngle(angCenter+spread*0.8)())
-      .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
-      .attr('fill','#AFA9EC').attr('opacity',0);
-    shieldPulse.append('animate').attr('attributeName','opacity')
-      .attr('values','0.3;0.05;0.3').attr('dur','2.5s').attr('repeatCount','indefinite');
+    if(sn.c.id==='VN')vnXY=sn.xy;
+    if(sn.c.id==='PH')phXY=sn.xy;
   });
+
+  if(vnXY&&phXY){
+    var gShield=gMain.append('g');
+
+    gShield.append('path')
+      .attr('d','M'+jpXY[0]+','+jpXY[1]+' Q'+(vnXY[0]-20)+','+(jpXY[1]+40)+' '+vnXY[0]+','+vnXY[1])
+      .attr('fill','none').attr('stroke','#378ADD').attr('stroke-width',2)
+      .attr('stroke-dasharray','10,5').attr('opacity',0.4);
+    gShield.append('path')
+      .attr('d','M'+vnXY[0]+','+vnXY[1]+' Q'+(scsCenter[0]-30)+','+(scsCenter[1]+40)+' '+phXY[0]+','+phXY[1])
+      .attr('fill','none').attr('stroke','#378ADD').attr('stroke-width',2.5)
+      .attr('stroke-dasharray','10,5').attr('opacity',0.5);
+    gShield.append('path')
+      .attr('d','M'+phXY[0]+','+phXY[1]+' Q'+(phXY[0]+30)+','+(jpXY[1]+60)+' '+jpXY[0]+','+jpXY[1])
+      .attr('fill','none').attr('stroke','#378ADD').attr('stroke-width',2)
+      .attr('stroke-dasharray','10,5').attr('opacity',0.4);
+
+    var triPath='M'+vnXY[0]+','+vnXY[1]
+      +' Q'+(scsCenter[0]-30)+','+(scsCenter[1]+40)+' '+phXY[0]+','+phXY[1]
+      +' Q'+(phXY[0]+30)+','+(jpXY[1]+60)+' '+jpXY[0]+','+jpXY[1]
+      +' Q'+(vnXY[0]-20)+','+(jpXY[1]+40)+' '+vnXY[0]+','+vnXY[1]+' Z';
+    gShield.append('path').attr('d',triPath)
+      .attr('fill','#378ADD').attr('opacity',0);
+    var fillPulse=gShield.append('path').attr('d',triPath)
+      .attr('fill','#378ADD').attr('opacity',0);
+    fillPulse.append('animate').attr('attributeName','opacity')
+      .attr('values','0.03;0.07;0.03').attr('dur','3s').attr('repeatCount','indefinite');
+
+    shieldNodes.forEach(function(sn){
+      var dx=scsCenter[0]-sn.xy[0],dy=scsCenter[1]-sn.xy[1];
+      var shR=sn.auraR+8;
+      var angCenter=Math.atan2(dy,dx);
+      var spread=0.7;
+      var arc=d3.arc().innerRadius(shR).outerRadius(shR+4)
+        .startAngle(angCenter-spread).endAngle(angCenter+spread);
+      gShield.append('path').attr('d',arc())
+        .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
+        .attr('fill','#378ADD').attr('opacity',0.45);
+      var outerArc=gShield.append('path').attr('d',
+        d3.arc().innerRadius(shR+5).outerRadius(shR+8)
+          .startAngle(angCenter-spread*0.7).endAngle(angCenter+spread*0.7)())
+        .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
+        .attr('fill','#85B7EB').attr('opacity',0);
+      outerArc.append('animate').attr('attributeName','opacity')
+        .attr('values','0.35;0.08;0.35').attr('dur','2.5s').attr('repeatCount','indefinite');
+    });
+
+    var jpShR=20;
+    var jpAngSCS=Math.atan2(scsCenter[1]-jpXY[1],scsCenter[0]-jpXY[0]);
+    var jpArc=d3.arc().innerRadius(jpShR).outerRadius(jpShR+3)
+      .startAngle(jpAngSCS-0.5).endAngle(jpAngSCS+0.5);
+    gShield.append('path').attr('d',jpArc())
+      .attr('transform','translate('+jpXY[0]+','+jpXY[1]+')')
+      .attr('fill','#378ADD').attr('opacity',0.35);
+
+    gShield.append('text')
+      .attr('x',(vnXY[0]+phXY[0])/2-30).attr('y',(vnXY[1]+phXY[1])/2+25)
+      .attr('text-anchor','middle').attr('font-size','9px')
+      .attr('fill',dk?'#85B7EB':'#185FA5').attr('font-family','inherit').attr('opacity',0.6)
+      .text('防衛協力ライン');
+  }
 
   drawRadar(gRadar,C[2]);
 
   setLegend('<b>円サイズ = 協力度</b>'
     +'<span style="color:var(--tx3)">|</span>'
     +'<span><span class="dot" style="background:#E24B4A;opacity:0.3;"></span> 緊張ゾーン</span>'
-    +'<span><span class="dot" style="background:#7F77DD;"></span> シールド (VN/PH)</span>'
+    +'<span><span class="dot" style="background:#378ADD;"></span> 防衛協力ライン (日越比)</span>'
     +'<span style="color:var(--tx3)">|</span>'
     +'<span>クリックでレーダー表示</span>');
   setCtrl('');
 
   var sorted=C.slice().sort(function(a,b){return b.sec.score-a.sec.score;});
-  var axes2=['RAA','2+2','共同訓練','武器供与','海保','情報'];
-  var keys2=['raa','two2','joint','arms','cg','intel'];
+  var axes2=[{k:'raa',l:'RAA'},{k:'two2',l:'2+2'},{k:'joint',l:'訓練'},{k:'arms',l:'武器'},{k:'cg',l:'海保'},{k:'intel',l:'情報'}];
   var rows=sorted.map(function(c){
-    var bars=keys2.map(function(k){
-      var v=c.sec.items[k];
-      var w=Math.round(v*10);
-      return '<span style="display:inline-block;width:'+w+'px;height:6px;background:#534AB7;opacity:'+(0.3+v*0.07)+';border-radius:2px;margin-right:1px;" title="'+k+': '+v+'/10"></span>';
+    var bars=axes2.map(function(a){
+      var v=c.sec.items[a.k];
+      var w=Math.max(2,Math.round(v*8));
+      var op=v>0?(0.35+v*0.065):0.08;
+      return '<div style="display:flex;align-items:center;gap:3px;margin:1px 0;">'
+        +'<span style="font-size:10px;color:var(--tx3);min-width:28px;text-align:right;">'+a.l+'</span>'
+        +'<span style="display:inline-block;width:'+w+'px;height:5px;background:#534AB7;opacity:'+op+';border-radius:2px;"></span>'
+        +'<span style="font-size:9px;color:var(--tx3);">'+v+'</span></div>';
     }).join('');
-    return '<tr><td>'+c.n+'</td>'
-      +'<td class="num" style="color:#534AB7;font-weight:500;">'+c.sec.score+'/10</td>'
-      +'<td>'+bars+'</td>'
-      +'<td style="color:var(--tx2);font-size:11px;">'+c.sec.note+'</td></tr>';
+    return '<tr><td style="vertical-align:top;">'+c.n+'</td>'
+      +'<td class="num" style="color:#534AB7;font-weight:500;vertical-align:top;">'+c.sec.score+'/10</td>'
+      +'<td style="padding:3px 6px;">'+bars+'</td>'
+      +'<td style="color:var(--tx2);font-size:11px;vertical-align:top;">'+c.sec.note+'</td></tr>';
   }).join('');
-  setTable('<table class="tbl"><tr><th>国</th><th class="num">協力度</th><th>'+axes2.join(' ')+'</th><th>備考</th></tr>'+rows+'</table>');
+  setTable('<table class="tbl"><tr><th>国</th><th class="num">協力度</th><th>内訳</th><th>備考</th></tr>'+rows+'</table>');
 }
 
 function drawRadar(g,c){
