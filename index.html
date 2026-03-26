@@ -364,35 +364,41 @@ function renderSecurity(){
     .attr('fill',dk?'#eee':'#1a1a1a').attr('font-family','inherit').text('日本');
 
   var selC=null;
+  var shieldNodes=[];
 
   C.forEach(function(c){
     var xy=pj([c.lo,c.la]);
     var sc=c.sec.score;
-    var op=0.08+sc*0.06;
-    var r=Math.max(8,Math.min(14,c.rel*2.5));
+    var op=0.1+sc*0.055;
+    var flagR=Math.max(7,Math.min(16,6+sc*1));
+    var auraR=flagR+6+sc*2;
 
-    gCountry.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',r+12)
+    gCountry.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',auraR)
       .attr('fill','#534AB7').attr('opacity',op)
-      .attr('stroke','#534AB7').attr('stroke-width',0.5).attr('stroke-opacity',op*1.5);
+      .attr('stroke','#534AB7').attr('stroke-width',0.5+sc*0.08).attr('stroke-opacity',op*1.5);
 
     if(sc>=6){
       gMain.append('path').attr('d',arcPath(jpXY[0],jpXY[1],xy[0],xy[1]))
         .attr('fill','none').attr('stroke','#7F77DD')
-        .attr('stroke-width',sc*0.3).attr('opacity',0.25)
+        .attr('stroke-width',sc*0.35).attr('opacity',0.25)
         .attr('stroke-dasharray','8,4');
     }
 
+    if(c.id==='VN'||c.id==='PH'){
+      shieldNodes.push({c:c,xy:xy,auraR:auraR});
+    }
+
     var g=gNodes.append('g').style('cursor','pointer');
-    drawFlag(g,xy[0],xy[1],r,c);
-    g.append('text').attr('x',xy[0]).attr('y',xy[1]+r+12)
+    drawFlag(g,xy[0],xy[1],flagR,c);
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+flagR+12)
       .attr('text-anchor','middle').attr('font-size','10px').attr('font-weight','500')
       .attr('fill',dk?'#ddd':'#333').attr('font-family','inherit').text(c.n);
-    g.append('text').attr('x',xy[0]).attr('y',xy[1]+r+23)
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+flagR+23)
       .attr('text-anchor','middle').attr('font-size','9px')
       .attr('fill',dk?'#AFA9EC':'#534AB7').attr('font-family','inherit')
       .text(c.sec.note);
 
-    var hit=g.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',r+16)
+    var hit=g.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',auraR+6)
       .attr('fill','none').style('pointer-events','all');
 
     hit.on('click',function(){
@@ -406,13 +412,35 @@ function renderSecurity(){
     bindTT(hit,html);
   });
 
+  shieldNodes.forEach(function(sn){
+    var dx=scsCenter[0]-sn.xy[0],dy=scsCenter[1]-sn.xy[1];
+    var dist=Math.sqrt(dx*dx+dy*dy);
+    var shR=sn.auraR+8;
+    var angCenter=Math.atan2(dy,dx);
+    var spread=0.6;
+    var arc=d3.arc().innerRadius(shR).outerRadius(shR+3)
+      .startAngle(angCenter-spread).endAngle(angCenter+spread);
+    gCountry.append('path').attr('d',arc())
+      .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
+      .attr('fill','#7F77DD').attr('opacity',0.5);
+    gCountry.append('path').attr('d',arc())
+      .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
+      .attr('fill','#7F77DD').attr('opacity',0);
+    var shieldPulse=gCountry.append('path').attr('d',
+      d3.arc().innerRadius(shR+4).outerRadius(shR+7)
+        .startAngle(angCenter-spread*0.8).endAngle(angCenter+spread*0.8)())
+      .attr('transform','translate('+sn.xy[0]+','+sn.xy[1]+')')
+      .attr('fill','#AFA9EC').attr('opacity',0);
+    shieldPulse.append('animate').attr('attributeName','opacity')
+      .attr('values','0.3;0.05;0.3').attr('dur','2.5s').attr('repeatCount','indefinite');
+  });
+
   drawRadar(gRadar,C[2]);
 
-  setLegend('<b>濃度:</b> <span><span class="dot" style="background:#534AB7;opacity:0.2;"></span> 低</span>'
-    +'<span><span class="dot" style="background:#534AB7;opacity:0.4;"></span> 中</span>'
-    +'<span><span class="dot" style="background:#534AB7;opacity:0.65;"></span> 高</span>'
+  setLegend('<b>円サイズ = 協力度</b>'
     +'<span style="color:var(--tx3)">|</span>'
     +'<span><span class="dot" style="background:#E24B4A;opacity:0.3;"></span> 緊張ゾーン</span>'
+    +'<span><span class="dot" style="background:#7F77DD;"></span> シールド (VN/PH)</span>'
     +'<span style="color:var(--tx3)">|</span>'
     +'<span>クリックでレーダー表示</span>');
   setCtrl('');
@@ -501,10 +529,11 @@ function renderODA(){
 
   C.forEach(function(c){
     var xy=pj([c.lo,c.la]);
-    var pr2=Math.max(6,Math.sqrt(c.oda.cum)*2.2);
-    var fdiR=pr2+3+Math.sqrt(c.fdi)*3;
-    var popR=fdiR+3+Math.sqrt(c.pop)*1.2;
-    var r=Math.max(8,Math.min(14,c.rel*2.5));
+    var volume=c.oda.cum+c.fdi;
+    var pr2=Math.max(10,Math.sqrt(volume)*3.2);
+    var flagR=Math.max(5,pr2*0.4);
+    var fdiR=pr2+4+Math.sqrt(c.fdi)*2.5;
+    var popR=fdiR+3+Math.sqrt(c.pop)*1;
 
     gNodes.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',popR)
       .attr('fill','rgba(186,117,23,0.04)')
@@ -518,15 +547,17 @@ function renderODA(){
     var gPie=gNodes.append('g');
     entries.forEach(function(e){
       var ea=sa+e[1]*2*Math.PI;
-      gPie.append('path').attr('d',d3.arc().innerRadius(0).outerRadius(pr2).startAngle(sa).endAngle(ea)())
+      gPie.append('path').attr('d',d3.arc().innerRadius(flagR+1).outerRadius(pr2).startAngle(sa).endAngle(ea)())
         .attr('transform','translate('+xy[0]+','+xy[1]+')').attr('fill',CK[e[0]]).attr('fill-opacity',0.8);
       sa=ea;
     });
     gPie.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',pr2)
       .attr('fill','none').attr('stroke',dk?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.1)').attr('stroke-width',0.4);
 
+    var gFlag=gNodes.append('g');
+    drawFlag(gFlag,xy[0],xy[1],flagR,c);
+
     var g=gNodes.append('g').style('cursor','pointer');
-    drawFlag(g,xy[0],xy[1]-popR-r-4,r,c);
     g.append('text').attr('x',xy[0]).attr('y',xy[1]+popR+14)
       .attr('text-anchor','middle').attr('font-size','10px').attr('font-weight','500')
       .attr('fill',dk?'#ddd':'#333').attr('font-family','inherit').text(c.n);
@@ -542,12 +573,13 @@ function renderODA(){
     bindTT(hit,html);
   });
 
-  setLegend('<b>リング:</b> '
-    +'<span><span class="dot" style="background:#EF9F27;"></span> ODA (内円パイ)</span>'
-    +'<span style="color:#D85A30;">FDI (中)</span>'
-    +'<span style="color:#BA7517;">人口 (外)</span>'
+  setLegend('<b>ドーナツ:</b> '
+    +'<span><span class="dot" style="background:#EF9F27;"></span> ODA内訳 (面積=ODA+FDI)</span>'
     +'<span style="color:var(--tx3)">|</span>'
-    +'<span>弧線太さ = ODA規模</span>');
+    +'<span style="color:#D85A30;">FDI (中リング)</span>'
+    +'<span style="color:#BA7517;">人口 (外リング)</span>'
+    +'<span style="color:var(--tx3)">|</span>'
+    +'<span>中心 = 国旗</span>');
   setCtrl('');
 
   var sorted=C.slice().sort(function(a,b){return b.oda.cum-a.oda.cum;});
