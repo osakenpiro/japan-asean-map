@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Japan × ASEAN 関係マップ</title>
+<meta property="og:title" content="Japan × ASEAN 関係マップ">
+<meta property="og:description" content="日本と東南アジア10カ国の関係性を貿易・安保・経済協力の3ビューで可視化。国旗ノードと関係深度アークで探索するインタラクティブマップ。">
+<meta property="og:url" content="https://osakenpiro.github.io/japan-asean-map/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#fff;--bg2:#f5f4f0;--tx:#1a1a1a;--tx2:#666;--tx3:#999;--bd:#ddd;
+  --card-bg:#fff;--area-stroke:rgba(0,0,0,0.08);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a1a;--bg2:#242422;--tx:#eee;--tx2:#aaa;--tx3:#777;--bd:#444;
+    --card-bg:#242422;--area-stroke:rgba(255,255,255,0.1);
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Kaku Gothic ProN',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}
+.wrap{max-width:760px;margin:0 auto;padding:12px 16px 40px;}
+h1{font-size:18px;font-weight:500;margin:0 0 2px;letter-spacing:0.02em;}
+.sub{font-size:12px;color:var(--tx2);margin:0 0 10px;}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);margin:0 0 2px;}
+.tab{padding:8px 14px;font-size:13px;color:var(--tx2);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;font-family:inherit;}
+.tab:hover{color:var(--tx);}
+.tab.active{color:var(--tx);font-weight:500;border-bottom-color:var(--tx);}
+.ctrl{display:flex;align-items:center;gap:10px;margin:8px 0 4px;flex-wrap:wrap;}
+.ctrl label{font-size:13px;color:var(--tx2);white-space:nowrap;}
+.ctrl input[type=range]{flex:1;min-width:120px;height:6px;-webkit-appearance:none;appearance:none;background:var(--bd);border-radius:3px;outline:none;}
+.ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--tx);cursor:pointer;}
+.ctrl input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--tx);cursor:pointer;border:none;}
+.ctrl span{font-size:14px;font-weight:500;min-width:36px;text-align:center;}
+#mp{width:100%;}
+.leg{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 0;font-size:11px;color:var(--tx2);align-items:center;}
+.leg b{font-weight:500;font-size:11px;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;vertical-align:middle;}
+#tt{position:fixed;display:none;background:var(--card-bg);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;font-size:12px;pointer-events:none;z-index:100;max-width:300px;line-height:1.7;box-shadow:0 4px 20px rgba(0,0,0,0.12);}
+.src{font-size:10px;color:var(--tx3);margin:10px 0 0;line-height:1.6;}
+.ft{font-size:11px;color:var(--tx3);margin:16px 0 0;text-align:center;}
+.ft a{color:var(--tx2);text-decoration:none;}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 0;}
+.tbl th{text-align:left;font-weight:500;font-size:11px;color:var(--tx2);padding:6px 8px;border-bottom:1px solid var(--bd);}
+.tbl td{padding:5px 8px;border-bottom:0.5px solid var(--bd);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums;}
+.tbl-wrap{margin:6px 0 0;}
+.tbl-title{font-size:12px;font-weight:500;color:var(--tx2);margin:0 0 2px;}
+@media(max-width:500px){
+  h1{font-size:15px;}
+  .tab{padding:7px 10px;font-size:12px;}
+  .leg{gap:5px;font-size:10px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Japan × ASEAN 関係マップ</h1>
+<p class="sub">日本と東南アジア10カ国 — 貿易・安保・経済協力を3ビューで可視化</p>
+<div class="tabs">
+  <button class="tab active" data-v="0">貿易フロー</button>
+  <button class="tab" data-v="1">安全保障</button>
+  <button class="tab" data-v="2">経済協力</button>
+</div>
+<div id="ctrl-area"></div>
+<div id="mp"></div>
+<div id="leg-area"></div>
+<div id="tbl-area"></div>
+<p class="src">
+  出典: 外務省「外交青書」、JETRO貿易統計、財務省貿易統計、防衛省資料<br>
+  ODA: JICA / OECD DAC。数値は概算値を含みます。
+</p>
+<div class="ft"><a href="https://osakenpiro.github.io/boku-no-wakusei/" target="_blank">osakenpiro</a> / #全人類UX改善計画</div>
+</div>
+<div id="tt"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+(function(){
+var dk=matchMedia('(prefers-color-scheme:dark)').matches;
+var W=700,H=700;
+var pj=d3.geoMercator().center([122,16]).scale(620).translate([W/2,H/2+30]);
+var pa=d3.geoPath(pj);
+var s=d3.select('#mp').append('svg').attr('viewBox','0 0 '+W+' '+H).attr('width','100%').style('display','block');
+var gM=s.append('g');
+var gMain=s.append('g');
+var tt=document.getElementById('tt');
+var isMobile='ontouchstart' in window;
+var curView=0;
+var animFrame=null;
+
+var JP={la:35.68,lo:139.69};
+var jpXY=pj([JP.lo,JP.la]);
+
+var C=[
+{id:'VN',n:'ベトナム',en:'Vietnam',la:21.03,lo:105.85,
+ fl:[['#DA251D',0,0.5],['#FFCD00',0.5,1]],
+ trade:{ex:21.5,im:27.3,top:'電子部品, 機械'},
+ sec:{score:7,items:{raa:0,two2:0,joint:6,arms:3,cg:8,intel:5},note:'海保支援中心'},
+ oda:{cum:28,comp:{infra:0.55,edu:0.2,health:0.1,other:0.15}},fdi:4.2,pop:99,rel:5},
+{id:'TH',n:'タイ',en:'Thailand',la:13.75,lo:100.52,
+ fl:[['#A51931',0,0.2],['#F4F5F8',0.2,0.4],['#2D2A4A',0.4,0.6],['#F4F5F8',0.6,0.8],['#A51931',0.8,1]],
+ trade:{ex:32.8,im:25.1,top:'自動車, 電機'},
+ sec:{score:4,items:{raa:0,two2:0,joint:4,arms:2,cg:3,intel:3},note:'伝統的パートナー'},
+ oda:{cum:8,comp:{infra:0.45,edu:0.25,health:0.1,other:0.2}},fdi:6.8,pop:72,rel:4},
+{id:'PH',n:'フィリピン',en:'Philippines',la:14.6,lo:120.98,
+ fl:[['#0038A8',0,0.5],['#CE1126',0.5,1]],
+ trade:{ex:11.2,im:12.8,top:'半導体, 輸送機器'},
+ sec:{score:9,items:{raa:9,two2:9,joint:8,arms:6,cg:7,intel:7},note:'RAA締結・2+2'},
+ oda:{cum:12,comp:{infra:0.5,edu:0.15,health:0.15,other:0.2}},fdi:1.8,pop:115,rel:5},
+{id:'ID',n:'インドネシア',en:'Indonesia',la:-6.2,lo:106.85,
+ fl:[['#CE1126',0,0.5],['#FFFFFF',0.5,1]],
+ trade:{ex:15.4,im:27.6,top:'鉱物, LNG'},
+ sec:{score:4,items:{raa:0,two2:0,joint:4,arms:3,cg:4,intel:3},note:'非同盟・G20'},
+ oda:{cum:25,comp:{infra:0.6,edu:0.15,health:0.1,other:0.15}},fdi:3.5,pop:280,rel:4},
+{id:'SG',n:'シンガポール',en:'Singapore',la:1.35,lo:103.82,
+ fl:[['#EF3340',0,0.5],['#FFFFFF',0.5,1]],
+ trade:{ex:21.1,im:10.5,top:'石油製品, 精密機器'},
+ sec:{score:6,items:{raa:0,two2:0,joint:5,arms:2,cg:3,intel:7},note:'ロジスティクスハブ'},
+ oda:{cum:0.5,comp:{infra:0.3,edu:0.4,health:0.1,other:0.2}},fdi:5.2,pop:5.9,rel:4},
+{id:'MY',n:'マレーシア',en:'Malaysia',la:3.14,lo:101.69,
+ fl:[['#CC0001',0,0.25],['#FFFFFF',0.25,0.5],['#CC0001',0.5,0.75],['#010066',0.75,1]],
+ trade:{ex:16.3,im:22.8,top:'電子部品, LNG'},
+ sec:{score:3,items:{raa:0,two2:0,joint:3,arms:1,cg:3,intel:3},note:'ルックイースト'},
+ oda:{cum:2,comp:{infra:0.4,edu:0.3,health:0.1,other:0.2}},fdi:2.1,pop:34,rel:3},
+{id:'MM',n:'ミャンマー',en:'Myanmar',la:16.87,lo:96.2,
+ fl:[['#FECB00',0,0.33],['#34B233',0.33,0.66],['#EA2839',0.66,1]],
+ trade:{ex:1.8,im:0.5,top:'衣料, 水産物'},
+ sec:{score:1,items:{raa:0,two2:0,joint:0,arms:0,cg:1,intel:1},note:'内戦で停滞'},
+ oda:{cum:7,comp:{infra:0.5,edu:0.2,health:0.15,other:0.15}},fdi:0.4,pop:55,rel:2},
+{id:'KH',n:'カンボジア',en:'Cambodia',la:11.56,lo:104.92,
+ fl:[['#032EA1',0,0.25],['#E00025',0.25,0.75],['#032EA1',0.75,1]],
+ trade:{ex:0.8,im:1.2,top:'衣料, 農産物'},
+ sec:{score:2,items:{raa:0,two2:0,joint:1,arms:1,cg:2,intel:1},note:'PKO・地雷除去'},
+ oda:{cum:4,comp:{infra:0.45,edu:0.25,health:0.15,other:0.15}},fdi:0.3,pop:17,rel:2},
+{id:'LA',n:'ラオス',en:'Laos',la:17.97,lo:102.63,
+ fl:[['#CE1126',0,0.25],['#002868',0.25,0.75],['#CE1126',0.75,1]],
+ trade:{ex:0.3,im:0.1,top:'電力, 木材'},
+ sec:{score:2,items:{raa:0,two2:0,joint:1,arms:0,cg:1,intel:1},note:'メコン開発'},
+ oda:{cum:3,comp:{infra:0.5,edu:0.25,health:0.1,other:0.15}},fdi:0.1,pop:7.5,rel:2},
+{id:'BN',n:'ブルネイ',en:'Brunei',la:4.94,lo:114.95,
+ fl:[['#F7E017',0,0.4],['#FFFFFF',0.4,0.6],['#000000',0.6,1]],
+ trade:{ex:0.3,im:2.1,top:'LNG, 石油'},
+ sec:{score:3,items:{raa:0,two2:0,joint:2,arms:1,cg:2,intel:2},note:'エネルギー安保'},
+ oda:{cum:0.2,comp:{infra:0.3,edu:0.3,health:0.1,other:0.3}},fdi:0.05,pop:0.45,rel:2}
+];
+
+function showTT(html,ex,ey){
+  tt.innerHTML=html;tt.style.display='block';
+  var tw=tt.offsetWidth,th=tt.offsetHeight;
+  var vw=window.innerWidth,vh=window.innerHeight;
+  var lx=ex+14,ly=ey-24;
+  if(lx+tw>vw-10)lx=ex-tw-14;
+  if(ly<10)ly=ey+14;
+  if(ly+th>vh-10)ly=vh-th-10;
+  tt.style.left=lx+'px';tt.style.top=ly+'px';
+}
+function hideTT(){tt.style.display='none';}
+
+function drawFlag(g,cx,cy,r,c){
+  var id='fl-'+c.id;
+  var defs=s.select('defs');
+  if(defs.empty())defs=s.insert('defs',':first-child');
+  if(defs.select('#'+id).empty()){
+    var cp=defs.append('clipPath').attr('id',id);
+    cp.append('circle').attr('cx',cx).attr('cy',cy).attr('r',r);
+  }else{
+    defs.select('#'+id+' circle').attr('cx',cx).attr('cy',cy).attr('r',r);
+  }
+  var fg=g.append('g').attr('clip-path','url(#'+id+')');
+  c.fl.forEach(function(band){
+    var y0=cy-r+band[1]*r*2, h2=(band[2]-band[1])*r*2;
+    fg.append('rect').attr('x',cx-r).attr('y',y0).attr('width',r*2).attr('height',h2).attr('fill',band[0]);
+  });
+  g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',r)
+    .attr('fill','none').attr('stroke',dk?'rgba(255,255,255,0.25)':'rgba(0,0,0,0.15)').attr('stroke-width',0.8);
+}
+
+function drawJPFlag(g,cx,cy,r){
+  g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',r).attr('fill','#FFFFFF');
+  g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',r*0.38).attr('fill','#BC002D');
+  g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',r)
+    .attr('fill','none').attr('stroke',dk?'rgba(255,255,255,0.25)':'rgba(0,0,0,0.15)').attr('stroke-width',0.8);
+}
+
+function arcPath(x1,y1,x2,y2,curve){
+  var k=curve||0.2;
+  var mx=(x1+x2)/2,my=(y1+y2)/2;
+  var dx=x2-x1,dy=y2-y1;
+  var cx=mx-dy*k,cy=my+dx*k;
+  return 'M'+x1+','+y1+' Q'+cx+','+cy+' '+x2+','+y2;
+}
+
+function fmtB(n){return n>=10?Math.round(n)+'B':n.toFixed(1)+'B';}
+function fmtT(n){return n>=10?Math.round(n)+'兆':n.toFixed(1)+'兆';}
+
+var ASEAN_IDS=['360','608','704','764','702','458','104','116','418','096','626'];
+var NEAR_IDS=['156','410','158'];
+
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(function(w){
+  var ft=topojson.feature(w,w.objects.countries).features;
+  ft.filter(function(f){return ASEAN_IDS.indexOf(f.id)>=0;}).forEach(function(f){
+    gM.append('path').datum(f).attr('d',pa)
+      .attr('fill',dk?'#2a2a28':'#e8e6df')
+      .attr('stroke',dk?'#444':'#ccc').attr('stroke-width',0.4);
+  });
+  var jp=ft.find(function(f){return f.id==='392';});
+  if(jp)gM.append('path').datum(jp).attr('d',pa).attr('fill',dk?'#2C2C2A':'#F1EFE8').attr('stroke',dk?'#5F5E5A':'#B4B2A9').attr('stroke-width',0.5);
+  ft.filter(function(f){return NEAR_IDS.indexOf(f.id)>=0;}).forEach(function(f){
+    gM.append('path').datum(f).attr('d',pa).attr('fill',dk?'#1e1e1c':'#ece9e1').attr('stroke',dk?'#3a3a38':'#d4d1c9').attr('stroke-width',0.3);
+  });
+  render();
+});
+
+function render(){
+  gMain.selectAll('*').remove();
+  s.select('defs').remove();
+  if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  if(curView===0)renderTrade();
+  else if(curView===1)renderSecurity();
+  else renderODA();
+}
+
+function renderTrade(){
+  var gArcs=gMain.append('g');
+  var gNodes=gMain.append('g');
+  var gParticles=gMain.append('g');
+
+  C.forEach(function(c){
+    var xy=pj([c.lo,c.la]);
+    var swEx=Math.max(0.5,Math.sqrt(c.trade.ex)*0.55);
+    var swIm=Math.max(0.5,Math.sqrt(c.trade.im)*0.55);
+    gArcs.append('path').attr('d',arcPath(jpXY[0],jpXY[1],xy[0],xy[1],0.15))
+      .attr('fill','none').attr('stroke',dk?'rgba(29,158,117,0.35)':'rgba(29,158,117,0.25)')
+      .attr('stroke-width',swEx);
+    gArcs.append('path').attr('d',arcPath(xy[0],xy[1],jpXY[0],jpXY[1],0.15))
+      .attr('fill','none').attr('stroke',dk?'rgba(216,90,48,0.3)':'rgba(216,90,48,0.2)')
+      .attr('stroke-width',swIm);
+  });
+
+  drawJPFlag(gNodes,jpXY[0],jpXY[1],14);
+  gNodes.append('text').attr('x',jpXY[0]).attr('y',jpXY[1]-20)
+    .attr('text-anchor','middle').attr('font-size','11px').attr('font-weight','500')
+    .attr('fill',dk?'#eee':'#1a1a1a').attr('font-family','inherit').text('日本');
+
+  C.forEach(function(c){
+    var xy=pj([c.lo,c.la]);
+    var r=Math.max(8,Math.min(14,c.rel*2.5));
+    var g=gNodes.append('g').style('cursor','pointer');
+    drawFlag(g,xy[0],xy[1],r,c);
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+r+12)
+      .attr('text-anchor','middle').attr('font-size','10px').attr('font-weight','500')
+      .attr('fill',dk?'#ddd':'#333').attr('font-family','inherit').text(c.n);
+
+    var total=c.trade.ex+c.trade.im;
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+r+23)
+      .attr('text-anchor','middle').attr('font-size','9px')
+      .attr('fill',dk?'#aaa':'#888').attr('font-family','inherit')
+      .text('$'+Math.round(total)+'B');
+
+    var hit=g.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',r+8)
+      .attr('fill','none').style('pointer-events','all');
+    var html='<div style="font-weight:500;font-size:15px;margin-bottom:4px;">'+c.n+' ('+c.en+')</div>'
+      +'<div style="margin-bottom:6px;">'
+      +'<span style="color:#0F6E56;">輸出 $'+c.trade.ex+'B</span>&ensp;'
+      +'<span style="color:#D85A30;">輸入 $'+c.trade.im+'B</span></div>'
+      +'<div style="font-size:11px;color:var(--tx2);">主要品目: '+c.trade.top+'</div>';
+    bindTT(hit,html);
+  });
+
+  var particles=[];
+  C.forEach(function(c){
+    var xy=pj([c.lo,c.la]);
+    var n=Math.max(1,Math.round((c.trade.ex+c.trade.im)/8));
+    for(var i=0;i<n;i++){
+      var isExport=Math.random()<c.trade.ex/(c.trade.ex+c.trade.im);
+      particles.push({
+        sx:isExport?jpXY[0]:xy[0],sy:isExport?jpXY[1]:xy[1],
+        ex:isExport?xy[0]:jpXY[0],ey:isExport?xy[1]:jpXY[1],
+        t:Math.random(),spd:0.001+Math.random()*0.002,
+        col:isExport?'#1D9E75':'#D85A30',r:1.5+Math.random(),
+        k:0.15
+      });
+    }
+  });
+  var pEls=particles.map(function(p){
+    return gParticles.append('circle').attr('r',p.r).attr('fill',p.col).attr('opacity',0.7);
+  });
+  function tick(){
+    particles.forEach(function(p,i){
+      p.t+=p.spd;
+      if(p.t>1)p.t-=1;
+      var mx=(p.sx+p.ex)/2,my=(p.sy+p.ey)/2;
+      var dx=p.ex-p.sx,dy=p.ey-p.sy;
+      var cx2=mx-dy*p.k,cy2=my+dx*p.k;
+      var t=p.t,u=1-t;
+      var x=u*u*p.sx+2*u*t*cx2+t*t*p.ex;
+      var y=u*u*p.sy+2*u*t*cy2+t*t*p.ey;
+      var op=Math.sin(t*Math.PI)*0.7;
+      pEls[i].attr('cx',x).attr('cy',y).attr('opacity',op);
+    });
+    animFrame=requestAnimationFrame(tick);
+  }
+  tick();
+
+  setLegend('<b>フロー:</b> <span><span class="dot" style="background:#1D9E75;"></span> 輸出</span>'
+    +'<span><span class="dot" style="background:#D85A30;"></span> 輸入</span>'
+    +'<span style="color:var(--tx3)">|</span>'
+    +'<span>線の太さ = 額</span>'
+    +'<span>粒子 = 物流方向</span>');
+  setCtrl('');
+
+  var sorted=C.slice().sort(function(a,b){return(b.trade.ex+b.trade.im)-(a.trade.ex+a.trade.im);});
+  var rows=sorted.map(function(c){
+    var total=c.trade.ex+c.trade.im;
+    var bal=c.trade.ex-c.trade.im;
+    var balC=bal>=0?'#0F6E56':'#D85A30';
+    var balS=bal>=0?'+':'';
+    return '<tr><td>'+c.n+'</td>'
+      +'<td class="num" style="color:#0F6E56;">$'+c.trade.ex+'B</td>'
+      +'<td class="num" style="color:#D85A30;">$'+c.trade.im+'B</td>'
+      +'<td class="num">$'+Math.round(total)+'B</td>'
+      +'<td class="num" style="color:'+balC+';">'+balS+bal.toFixed(1)+'B</td>'
+      +'<td style="color:var(--tx2);font-size:11px;">'+c.trade.top+'</td></tr>';
+  }).join('');
+  setTable('<table class="tbl"><tr><th>国</th><th class="num">輸出</th><th class="num">輸入</th><th class="num">総額</th><th class="num">収支</th><th>主要品目</th></tr>'+rows+'</table>');
+}
+
+function renderSecurity(){
+  var gZone=gMain.append('g');
+  var gCountry=gMain.append('g');
+  var gNodes=gMain.append('g');
+  var gRadar=gMain.append('g');
+
+  var scsCenter=pj([114,12]);
+  gZone.append('ellipse').attr('cx',scsCenter[0]).attr('cy',scsCenter[1]).attr('rx',80).attr('ry',50)
+    .attr('fill','rgba(226,75,74,0.04)').attr('stroke','#E24B4A').attr('stroke-width',0.8)
+    .attr('stroke-dasharray','6,4').attr('opacity',0.6);
+  var pulse=gZone.append('ellipse').attr('cx',scsCenter[0]).attr('cy',scsCenter[1]).attr('rx',60).attr('ry',35)
+    .attr('fill','#E24B4A').attr('opacity',0);
+  pulse.append('animate').attr('attributeName','opacity').attr('values','0.08;0.02;0.08').attr('dur','2.5s').attr('repeatCount','indefinite');
+  pulse.append('animate').attr('attributeName','rx').attr('values','60;90;60').attr('dur','2.5s').attr('repeatCount','indefinite');
+  pulse.append('animate').attr('attributeName','ry').attr('values','35;55;35').attr('dur','2.5s').attr('repeatCount','indefinite');
+  gZone.append('text').attr('x',scsCenter[0]).attr('y',scsCenter[1]-58)
+    .attr('text-anchor','middle').attr('font-size','9px')
+    .attr('fill',dk?'#F09595':'#A32D2D').attr('font-family','inherit').text('南シナ海 緊張ゾーン');
+
+  var twCenter=pj([121,24]);
+  gZone.append('ellipse').attr('cx',twCenter[0]).attr('cy',twCenter[1]).attr('rx',40).attr('ry',25)
+    .attr('fill','rgba(226,75,74,0.03)').attr('stroke','#E24B4A').attr('stroke-width',0.5)
+    .attr('stroke-dasharray','4,3').attr('opacity',0.4);
+  gZone.append('text').attr('x',twCenter[0]).attr('y',twCenter[1]-30)
+    .attr('text-anchor','middle').attr('font-size','8px')
+    .attr('fill',dk?'#F09595':'#A32D2D').attr('font-family','inherit').attr('opacity',0.6).text('台湾海峡');
+
+  drawJPFlag(gNodes,jpXY[0],jpXY[1],14);
+  gNodes.append('text').attr('x',jpXY[0]).attr('y',jpXY[1]-20)
+    .attr('text-anchor','middle').attr('font-size','11px').attr('font-weight','500')
+    .attr('fill',dk?'#eee':'#1a1a1a').attr('font-family','inherit').text('日本');
+
+  var selC=null;
+
+  C.forEach(function(c){
+    var xy=pj([c.lo,c.la]);
+    var sc=c.sec.score;
+    var op=0.08+sc*0.06;
+    var r=Math.max(8,Math.min(14,c.rel*2.5));
+
+    gCountry.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',r+12)
+      .attr('fill','#534AB7').attr('opacity',op)
+      .attr('stroke','#534AB7').attr('stroke-width',0.5).attr('stroke-opacity',op*1.5);
+
+    if(sc>=6){
+      gMain.append('path').attr('d',arcPath(jpXY[0],jpXY[1],xy[0],xy[1]))
+        .attr('fill','none').attr('stroke','#7F77DD')
+        .attr('stroke-width',sc*0.3).attr('opacity',0.25)
+        .attr('stroke-dasharray','8,4');
+    }
+
+    var g=gNodes.append('g').style('cursor','pointer');
+    drawFlag(g,xy[0],xy[1],r,c);
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+r+12)
+      .attr('text-anchor','middle').attr('font-size','10px').attr('font-weight','500')
+      .attr('fill',dk?'#ddd':'#333').attr('font-family','inherit').text(c.n);
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+r+23)
+      .attr('text-anchor','middle').attr('font-size','9px')
+      .attr('fill',dk?'#AFA9EC':'#534AB7').attr('font-family','inherit')
+      .text(c.sec.note);
+
+    var hit=g.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',r+16)
+      .attr('fill','none').style('pointer-events','all');
+
+    hit.on('click',function(){
+      gRadar.selectAll('*').remove();
+      drawRadar(gRadar,c);
+    });
+    var html='<div style="font-weight:500;font-size:15px;margin-bottom:4px;">'+c.n+' 安全保障</div>'
+      +'<div style="font-size:13px;color:#534AB7;margin-bottom:4px;">協力度: '+c.sec.score+'/10</div>'
+      +'<div style="font-size:11px;color:var(--tx2);">'+c.sec.note+'</div>'
+      +'<div style="font-size:10px;color:var(--tx3);margin-top:4px;">クリックでレーダー展開</div>';
+    bindTT(hit,html);
+  });
+
+  drawRadar(gRadar,C[2]);
+
+  setLegend('<b>濃度:</b> <span><span class="dot" style="background:#534AB7;opacity:0.2;"></span> 低</span>'
+    +'<span><span class="dot" style="background:#534AB7;opacity:0.4;"></span> 中</span>'
+    +'<span><span class="dot" style="background:#534AB7;opacity:0.65;"></span> 高</span>'
+    +'<span style="color:var(--tx3)">|</span>'
+    +'<span><span class="dot" style="background:#E24B4A;opacity:0.3;"></span> 緊張ゾーン</span>'
+    +'<span style="color:var(--tx3)">|</span>'
+    +'<span>クリックでレーダー表示</span>');
+  setCtrl('');
+
+  var sorted=C.slice().sort(function(a,b){return b.sec.score-a.sec.score;});
+  var axes2=['RAA','2+2','共同訓練','武器供与','海保','情報'];
+  var keys2=['raa','two2','joint','arms','cg','intel'];
+  var rows=sorted.map(function(c){
+    var bars=keys2.map(function(k){
+      var v=c.sec.items[k];
+      var w=Math.round(v*10);
+      return '<span style="display:inline-block;width:'+w+'px;height:6px;background:#534AB7;opacity:'+(0.3+v*0.07)+';border-radius:2px;margin-right:1px;" title="'+k+': '+v+'/10"></span>';
+    }).join('');
+    return '<tr><td>'+c.n+'</td>'
+      +'<td class="num" style="color:#534AB7;font-weight:500;">'+c.sec.score+'/10</td>'
+      +'<td>'+bars+'</td>'
+      +'<td style="color:var(--tx2);font-size:11px;">'+c.sec.note+'</td></tr>';
+  }).join('');
+  setTable('<table class="tbl"><tr><th>国</th><th class="num">協力度</th><th>'+axes2.join(' ')+'</th><th>備考</th></tr>'+rows+'</table>');
+}
+
+function drawRadar(g,c){
+  var rx=590,ry=120,R=70;
+  var axes=['RAA','2+2','共同訓練','武器供与','海保支援','情報共有'];
+  var keys=['raa','two2','joint','arms','cg','intel'];
+  var n=6,ang=2*Math.PI/n;
+
+  g.append('rect').attr('x',rx-R-28).attr('y',ry-R-30).attr('width',(R+28)*2).attr('height',(R+30)*2+24)
+    .attr('rx',10).attr('fill',dk?'rgba(36,36,34,0.92)':'rgba(255,255,255,0.92)')
+    .attr('stroke',dk?'#444':'#ddd').attr('stroke-width',0.5);
+  g.append('text').attr('x',rx).attr('y',ry-R-14).attr('text-anchor','middle')
+    .attr('font-size','12px').attr('font-weight','500')
+    .attr('fill',dk?'#eee':'#1a1a1a').attr('font-family','inherit').text(c.n);
+
+  [0.33,0.66,1].forEach(function(s){
+    var pts=[];
+    for(var i=0;i<n;i++){
+      var a=-Math.PI/2+i*ang;
+      pts.push((rx+Math.cos(a)*R*s)+','+(ry+Math.sin(a)*R*s));
+    }
+    g.append('polygon').attr('points',pts.join(' '))
+      .attr('fill','none').attr('stroke',dk?'#444':'#ddd').attr('stroke-width',0.3);
+  });
+
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+i*ang;
+    g.append('line').attr('x1',rx).attr('y1',ry)
+      .attr('x2',rx+Math.cos(a)*R).attr('y2',ry+Math.sin(a)*R)
+      .attr('stroke',dk?'#444':'#ddd').attr('stroke-width',0.3);
+    var lx=rx+Math.cos(a)*(R+14),ly=ry+Math.sin(a)*(R+14);
+    g.append('text').attr('x',lx).attr('y',ly+3).attr('text-anchor','middle')
+      .attr('font-size','8px').attr('fill',dk?'#aaa':'#888').attr('font-family','inherit')
+      .text(axes[i]);
+  }
+
+  var pts=[];
+  for(var i=0;i<n;i++){
+    var v=c.sec.items[keys[i]]/10;
+    var a=-Math.PI/2+i*ang;
+    pts.push((rx+Math.cos(a)*R*v)+','+(ry+Math.sin(a)*R*v));
+  }
+  g.append('polygon').attr('points',pts.join(' '))
+    .attr('fill','#534AB7').attr('fill-opacity',0.2)
+    .attr('stroke','#534AB7').attr('stroke-width',1.2);
+}
+
+function renderODA(){
+  var gArcs=gMain.append('g');
+  var gNodes=gMain.append('g');
+
+  var CK={infra:'#EF9F27',edu:'#378ADD',health:'#97C459',other:'#B4B2A9'};
+  var CN_oda={infra:'インフラ',edu:'教育',health:'保健',other:'その他'};
+
+  drawJPFlag(gNodes,jpXY[0],jpXY[1],14);
+  gNodes.append('text').attr('x',jpXY[0]).attr('y',jpXY[1]-20)
+    .attr('text-anchor','middle').attr('font-size','11px').attr('font-weight','500')
+    .attr('fill',dk?'#eee':'#1a1a1a').attr('font-family','inherit').text('日本');
+
+  C.forEach(function(c){
+    var xy=pj([c.lo,c.la]);
+    var sw=Math.max(0.5,Math.sqrt(c.oda.cum)*0.6);
+    gArcs.append('path').attr('d',arcPath(jpXY[0],jpXY[1],xy[0],xy[1]))
+      .attr('fill','none').attr('stroke',dk?'rgba(186,117,23,0.35)':'rgba(186,117,23,0.25)')
+      .attr('stroke-width',sw);
+  });
+
+  C.forEach(function(c){
+    var xy=pj([c.lo,c.la]);
+    var pr2=Math.max(6,Math.sqrt(c.oda.cum)*2.2);
+    var fdiR=pr2+3+Math.sqrt(c.fdi)*3;
+    var popR=fdiR+3+Math.sqrt(c.pop)*1.2;
+    var r=Math.max(8,Math.min(14,c.rel*2.5));
+
+    gNodes.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',popR)
+      .attr('fill','rgba(186,117,23,0.04)')
+      .attr('stroke','#BA7517').attr('stroke-width',1).attr('stroke-opacity',0.35);
+    gNodes.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',fdiR)
+      .attr('fill','rgba(216,90,48,0.05)')
+      .attr('stroke','#D85A30').attr('stroke-width',0.8).attr('stroke-opacity',0.4);
+
+    var sa=-Math.PI/2;
+    var entries=Object.entries(c.oda.comp);
+    var gPie=gNodes.append('g');
+    entries.forEach(function(e){
+      var ea=sa+e[1]*2*Math.PI;
+      gPie.append('path').attr('d',d3.arc().innerRadius(0).outerRadius(pr2).startAngle(sa).endAngle(ea)())
+        .attr('transform','translate('+xy[0]+','+xy[1]+')').attr('fill',CK[e[0]]).attr('fill-opacity',0.8);
+      sa=ea;
+    });
+    gPie.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',pr2)
+      .attr('fill','none').attr('stroke',dk?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.1)').attr('stroke-width',0.4);
+
+    var g=gNodes.append('g').style('cursor','pointer');
+    drawFlag(g,xy[0],xy[1]-popR-r-4,r,c);
+    g.append('text').attr('x',xy[0]).attr('y',xy[1]+popR+14)
+      .attr('text-anchor','middle').attr('font-size','10px').attr('font-weight','500')
+      .attr('fill',dk?'#ddd':'#333').attr('font-family','inherit').text(c.n);
+
+    var hit=g.append('circle').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',popR+8)
+      .attr('fill','none').style('pointer-events','all');
+    var cs=entries.map(function(e){return '<span style="color:'+CK[e[0]]+'">'+CN_oda[e[0]]+' '+Math.round(e[1]*100)+'%</span>';}).join('&ensp;');
+    var html='<div style="font-weight:500;font-size:15px;margin-bottom:4px;">'+c.n+'</div>'
+      +'<div style="color:#BA7517;font-weight:500;margin-bottom:3px;">ODA累積 $'+c.oda.cum+'B</div>'
+      +'<div style="color:#D85A30;margin-bottom:3px;">FDI $'+c.fdi+'B</div>'
+      +'<div style="color:var(--tx2);margin-bottom:4px;">人口 '+c.pop+'M</div>'
+      +'<div style="border-top:1px solid var(--bd);padding-top:5px;">'+cs+'</div>';
+    bindTT(hit,html);
+  });
+
+  setLegend('<b>リング:</b> '
+    +'<span><span class="dot" style="background:#EF9F27;"></span> ODA (内円パイ)</span>'
+    +'<span style="color:#D85A30;">FDI (中)</span>'
+    +'<span style="color:#BA7517;">人口 (外)</span>'
+    +'<span style="color:var(--tx3)">|</span>'
+    +'<span>弧線太さ = ODA規模</span>');
+  setCtrl('');
+
+  var sorted=C.slice().sort(function(a,b){return b.oda.cum-a.oda.cum;});
+  var rows=sorted.map(function(c){
+    var comp=Object.entries(c.oda.comp);
+    var bars=comp.map(function(e){
+      var w=Math.round(e[1]*60);
+      return '<span style="display:inline-block;width:'+w+'px;height:6px;background:'+CK[e[0]]+';opacity:0.8;border-radius:2px;margin-right:1px;" title="'+CN_oda[e[0]]+' '+Math.round(e[1]*100)+'%"></span>';
+    }).join('');
+    return '<tr><td>'+c.n+'</td>'
+      +'<td class="num" style="color:#BA7517;font-weight:500;">$'+c.oda.cum+'B</td>'
+      +'<td class="num" style="color:#D85A30;">$'+c.fdi+'B</td>'
+      +'<td class="num">'+c.pop+'M</td>'
+      +'<td>'+bars+'</td></tr>';
+  }).join('');
+  setTable('<table class="tbl"><tr><th>国</th><th class="num">ODA累積</th><th class="num">FDI</th><th class="num">人口</th><th>ODA内訳</th></tr>'+rows+'</table>');
+}
+
+function bindTT(el,html){
+  if(isMobile){
+    el.on('touchstart',function(ev){
+      ev.preventDefault();
+      var touch=ev.touches[0]||ev.changedTouches[0];
+      showTT(html,touch.clientX,touch.clientY);
+      setTimeout(hideTT,3000);
+    });
+  }else{
+    el.on('mouseenter',function(ev){showTT(html,ev.clientX,ev.clientY);})
+      .on('mousemove',function(ev){showTT(html,ev.clientX,ev.clientY);})
+      .on('mouseleave',hideTT);
+  }
+}
+
+function setLegend(h){document.getElementById('leg-area').innerHTML='<div class="leg">'+h+'</div>';}
+function setCtrl(h){document.getElementById('ctrl-area').innerHTML=h;}
+function setTable(h){document.getElementById('tbl-area').innerHTML='<div class="tbl-wrap">'+h+'</div>';}
+
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+    this.classList.add('active');
+    curView=+this.dataset.v;
+    hideTT();
+    render();
+  });
+});
+
+document.addEventListener('click',function(ev){
+  if(!tt.contains(ev.target)&&ev.target.tagName!=='circle'){hideTT();}
+});
+})();
+</script>
+</body>
+</html>
